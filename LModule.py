@@ -3,7 +3,7 @@ import re
 # ------------------------ Regular Expression Patterns ----------------------- #
 
 re_func_name = ' *[A-Za-z]{1} *(\\(|)'
-re_input_struct = '.*(:|).*(=|\\->).*(:|)'
+re_input_struct = '(.*(?::|).*)(=|\\->)(.*(?::|))'
 re_empty = '( *|^$)'
 
 re_valid_module = '( *[A-Za-z]{1} *\\( *([A-Za-z]+(?: *, *[A-Za-z]+)+|[A-Za-z]) *\\) *| *[A-Za-z]{1} *)|^$'
