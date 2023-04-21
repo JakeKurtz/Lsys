@@ -1,3 +1,12 @@
+###############################
+#                             #
+#         .,-;-;-,. /'_\      #
+#       _/_/_/_|_\_\) /       #
+#     '-<_><_><_><_>=/\       #
+#       `/_/====/_/-'\_\      #
+#        ""     ""    ""      #
+###############################
+
 import copy
 from dataclasses import dataclass
 from mathutils import Vector, Matrix

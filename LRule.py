@@ -15,7 +15,6 @@ class LRule:
 
         match = re.match(re_input_struct, input_str)
         if match:
-
             groups = match.groups()
             prefix = groups[0]
             suffix = groups[2]
@@ -60,7 +59,6 @@ class LRule:
     @property
     def right_context(self):
         return self.__right_context
-
     @property
     def input_str(self):
         return self.__input_str
@@ -162,9 +160,9 @@ class LRule:
         except ValueError:
             print("LRule Error: the production probability \"" + input_str + "\" can't be converted to a float." )
 
-
     def __verify_context(self, l_module, context_str):
         pass
+    
     def __verify_symbol_context(self, l_context, r_context):
         pass
 
@@ -191,4 +189,4 @@ class LRule:
         pass
 
 
-rule = LRule("H(i,j,k) < A(a,b,c) > B(1,2,3): m==0 = F(i,j,k,l,0)+F(i,j,k,l,1)+ : x+1/100+50*0.5**10")
+rule = LRule("H(i,j,k) < A(a,b,c) > C: m==0 = F(i,j,k,l,0)+F(i,j,k,l,1)+ : 1/100+50*0.5**10")
