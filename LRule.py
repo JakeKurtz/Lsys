@@ -1,192 +1,207 @@
 import re
 import ast
 from LModule import *
+from LExpression import *
 
 class LRule:
 
-    def __init__(self, input_str):
-        
+    def __init__(self, input_str):    
         self.__input = input_str
 
-        sym_raw = ""
-        condition_raw = ""
-        replacement_raw = ""
+        pred_str = ""
+        cond_str = ""
+        succ_str = ""
         prob_raw = ""
 
-        match = re.match(re_input_struct, input_str)
-        if match:
+        if match := re.match(re_input_struct, input_str):
             groups = match.groups()
             prefix = groups[0]
             suffix = groups[2]
 
             match = re.split(':', prefix)
             if len(match) == 2:
-                sym_raw, condition_raw = match
+                pred_str, cond_str = match
             else:
-                sym_raw = prefix
-                condition_raw = "1"
+                pred_str = prefix
+                cond_str = "1"
 
             match = re.split(':', suffix)
             if len(match) == 2:
-                replacement_raw, prob_raw = match
+                succ_str, prob_raw = match
             else:
-                replacement_raw = suffix
+                succ_str = suffix
                 prob_raw = "1"
             
-        self.__process_symbol_string(sym_raw)
-        self.__process_conditional_string(condition_raw)
-        #self.__process_replacement_string(replacement_raw)
-        self.__process_prob_string(prob_raw)
+        process_predecessor_string_success = self.__process_predecessor_string(pred_str)
+        process_conditional_string_success = self.__process_conditional_string(cond_str)
+        process_successor_string_success = self.__process_successor_string(succ_str)
+        process_prob_string_success = self.__process_prob_string(prob_raw)
+
+        self.__valid = (
+            process_predecessor_string_success and
+            process_conditional_string_success and
+            process_successor_string_success and 
+            process_prob_string_success
+        )
 
     def __del__(self):
         pass
 
-    def get_symbol(self):
-        pass
-    def get_input_string(self):
-        pass
     def apply(self, left_context, symbol, right_context, replacement):
-        pass
-    def valid(self):
         pass
 
     @property
-    def left_context(self):
-        return self.__left_context
-    @property
-    def symbol(self):
-        return self.__symbol
-    @property
-    def right_context(self):
-        return self.__right_context
+    def valid(self):
+        return self.__valid
     @property
     def input_str(self):
         return self.__input_str
 
+    __succ_modules = []
+
+    __left_context = None
+    __predecessor = None
+    __right_context = None
+
     __condition = ""
-    __replacement = ""
+    __prob = ""
 
-    __variables = set()
-    __replacement_parameters = {}
+    __valid = False
+    
+    __expr = LExpression()
 
-    __prob = 1.0
+    def __extract_parameters(self, input_str, i_offset):
+        stack = 0
+        i_start = None
 
-    __valid_symbols = False
-    __valid_conditional = False
-    __valid_replacement = False
-    __valid_probability = False
-    __valid_rule = False
+        i = i_offset
+        while i < len(input_str):
+            c = input_str[i]
+            if c == '(':
+                if stack == 0:
+                    i_start = i + 1
+                stack += 1
+            elif c == ')':
+                stack -= 1
+                if stack == 0:
+                    return True, i, input_str[i_start:i]
+            i+=1
+        print("Brackets are not balenced you fucking twat!")
+        return False, 0, ""
 
-    def __load_variables(self):
-        pass
+    def __extract_succ_modules(self, input_str):
+        i = 0
+        modules = []
+        while i < len(input_str):
+            c = input_str[i]
+            if c != '(':
+                valid_module_name = not (re.match(re_valid_module_name, c) == None)
+                if input_str[(i+1) % (len(input_str))] == '(':
+                    success, i, params = self.__extract_parameters(input_str, i)
+                    if success and valid_module_name:
+                        modules.append(LModule(c, params.split(',')))
+                    else:
+                        return False, []
+                elif c == ')':
+                    print("Brackets are not balenced you fucking twat!")
+                    return False, []
+                elif valid_module_name:
+                    modules.append(LModule(c,[]))
+            i+=1
+        return True, modules
 
-    def __process_symbol_string(self, input_str):
-        
+    def __extract_pred_module(self, input_str):
+        input_str = input_str.replace(" ", "")
+        symbol = ""
+        parameters = []
+        if match := re.match(re_valid_module, input_str):
+            groups = [x for x in match.groups() if x != None]
+            if len(groups) >= 1:
+                symbol = groups[0]
+            if len(groups) == 2:
+                parameters = groups[1].split(',')
+        else:
+            print("LRule Error: Failed to varify production. \"" + input_str + "\" is not a valid module.")
+            return False, None
+        return True, LModule(symbol, parameters)
+
+    def __process_predecessor_string(self, input_str):     
         left_context_str = ""
-        sym_str = ""
+        pred_str = ""
         right_context_str = ""
 
         if match := re.search('(.*)<(.*)>(.*)', input_str):
             groups = match.groups()
             left_context_str = groups[0]
-            sym_str = groups[1]
+            pred_str = groups[1]
             right_context_str = groups[2]
         elif match := re.search('(.*)<(.*)', input_str):
             groups = match.groups()
             left_context_str = groups[0]
-            sym_str = groups[1]
+            pred_str = groups[1]
         elif match := re.search('(.*)>(.*)', input_str):
             groups = match.groups()
-            sym_str = groups[0]
+            pred_str = groups[0]
             right_context_str = groups[1]
         else:
-            sym_str = input_str
+            pred_str = input_str
 
-        left_context_str = left_context_str.replace(" ", "")
-        sym_str = sym_str.replace(" ", "")
-        right_context_str = right_context_str.replace(" ", "")
+        init_left_context_success, self.__left_context = self.__extract_pred_module(left_context_str)
+        init_predecessor_success, self.__predecessor = self.__extract_pred_module(pred_str)
+        init_right_context_success, self.__right_context = self.__extract_pred_module(right_context_str)
 
-        self.__left_context = LModule(left_context_str)
-        self.__symbol = LModule(sym_str)
-        self.__right_context = LModule(right_context_str)
+        if self.__predecessor.symbol == "":
+            print("LRule Error: Failed to varify production. The predecessor cannot be an empty string.")
+            init_predecessor_success = False
 
-        self.__verify_symbols()
+        init_variables_success = self.__init_variables()
+
+        success = (
+            init_left_context_success and 
+            init_predecessor_success and 
+            init_right_context_success and 
+            init_variables_success )
+
+        return success
 
     def __process_conditional_string(self, input_str):
         if re.match('^\s+|^$', input_str):
             condition = input_str.strip()
         else:
             condition = "1"
-        try:
-            ast.parse(condition)
-            self.__valid_conditional = True
-        except SyntaxError:
-            print("LRule Error: parser failed to compile. The conditional expression \"" + condition +"\" is invalid.")
+
+        if self.__expr.eval(condition) is not None:
+            self.__condition = condition
+            return True
         
-        print(condition)
+        return False
 
-    def __process_replacement_string(self, input_str):
-        suffix = ""
-        prefix = ""
-
-        input_str = input_str.replace(" ", "")
-
-        self.__valid_replacement = True
-        while match := re.search(re_parameters, input_str) and self.__valid_replacement:
-            parameters_raw = match[0].strip('()')
-            parameters = parameters_raw.split(',')
+    def __process_successor_string(self, input_str):
+        init_successor_success, self.__succ_modules = self.__extract_succ_modules(input_str)
+        return init_successor_success
 
     def __process_prob_string(self, input_str):
         input_str = input_str.strip(' ')
-        try:
-            parse = ast.parse(input_str, mode="eval")
-
-            valid_expression = True
-            for node in ast.walk(parse):
-                if not isinstance(node, (ast.Constant, ast.Expression, ast.BinOp, ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow, ast.Mod)):
-                    valid_expression = False
-                    break
-                    
-            if valid_expression:
-                prob = float(eval(compile(parse, "<string>", "eval")))
-                print(prob)
-                if (prob > 1.0 or prob < 0.0):
-                    print("LRule Error: the production probability \"" + input_str + "\" is outside the range [0, 1].")
-                else:
-                    self.__prob = prob
-            else:
-                print("LRule Error: the production probability \"" + input_str + "\" can't be converted to a float." )
-
-        except ValueError:
+        if self.__expr.eval(input_str) is not None:
+            self.__prob = input_str
+            return True
+        else:
             print("LRule Error: the production probability \"" + input_str + "\" can't be converted to a float." )
+            return False
 
-    def __verify_context(self, l_module, context_str):
-        pass
-    
-    def __verify_symbol_context(self, l_context, r_context):
-        pass
+    def __init_variables(self):
+        vars = []
+        vars.extend(self.__left_context.parameters)
+        vars.extend(self.__predecessor.parameters)
+        vars.extend(self.__right_context.parameters)
 
-    def __load_module_parameters(self, l_module, input_str):
-        pass
+        if len(set(vars)) == len(vars):
+            for v in vars:
+                self.__expr.add_var(v)
+        else:
+            print("LRule Error: Failed to initialize predecessor variables. Duplicates detected.")
+            return False
+        return True
 
-    def __verify_symbols(self):
-        valid = True
-        if not self.__left_context.valid:
-            print("LRule Error: Failed to varify production. The left context \"" + self.__left_context.symbol + "\" is not a valid module.")
-            valid = False
-        if not self.__symbol.valid:
-            print("LRule Error: Failed to varify production. The symbol \"" + self.__symbol.symbol + "\" is not a valid module.")
-            valid = False
-        if self.__symbol.symbol == "":
-            print("LRule Error: Failed to varify production. The Symbol cannot be an empty string.")
-            valid = False
-        if not self.__right_context.valid:
-            print("LRule Error: Failed to varify production. The right context \"" + self.__right_context.symbol + "\" is not a valid module.")
-            valid = False
-        return valid
-
-    def __valid_input_string(self, input_str):
-        pass
-
-
-rule = LRule("H(i,j,k) < A(a,b,c) > C: m==0 = F(i,j,k,l,0)+F(i,j,k,l,1)+ : 1/100+50*0.5**10")
+rule = LRule("k(i,j,k) < A(m): m==(i+8) <= 10 = F(i,j,k,l,0)+F(i,j,k+5500*(imgay),l,1)+ : 1/100+50*0.5**10+o")
+print(rule.valid)
