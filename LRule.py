@@ -1,5 +1,5 @@
 import re
-import ast
+from util import extract_module
 from LModule import *
 from LExpression import *
 
@@ -32,23 +32,34 @@ class LRule:
                 succ_str = suffix
                 prob_raw = "1"
             
-        process_predecessor_string_success = self.__process_predecessor_string(pred_str)
-        process_conditional_string_success = self.__process_conditional_string(cond_str)
-        process_successor_string_success = self.__process_successor_string(succ_str)
-        process_prob_string_success = self.__process_prob_string(prob_raw)
-
-        self.__valid = (
-            process_predecessor_string_success and
-            process_conditional_string_success and
-            process_successor_string_success and 
-            process_prob_string_success
-        )
+            
+        if self.__process_predecessor_string(pred_str):
+            if self.__process_conditional_string(cond_str):
+                if self.__process_successor_string(succ_str):
+                    if self.__process_prob_string(prob_raw):
+                         self.__valid = True
 
     def __del__(self):
         pass
 
-    def apply(self, left_context, symbol, right_context, replacement):
-        pass
+    def apply(self, lc, pred, rc):
+
+        if (
+            self.__valid_module(self.__l_context,   lc)     and 
+            self.__valid_module(self.__pred,        pred)   and 
+            self.__valid_module(self.__r_context,   rc) 
+        ):
+            self.__load_module_parameters(self.__l_context, lc)
+            self.__load_module_parameters(self.__pred,      pred)
+            self.__load_module_parameters(self.__r_context, rc)
+
+            output = ""
+
+            if (self.__expr.eval(self.__condition)):
+                for module in self.__succ_modules:
+                    output += self.__foobar(module)
+
+        return output
 
     @property
     def valid(self):
@@ -59,9 +70,9 @@ class LRule:
 
     __succ_modules = []
 
-    __left_context = None
-    __predecessor = None
-    __right_context = None
+    __l_context = LModule()
+    __pred = LModule()
+    __r_context = LModule()
 
     __condition = ""
     __prob = ""
@@ -70,97 +81,74 @@ class LRule:
     
     __expr = LExpression()
 
-    def __extract_parameters(self, input_str, i_offset):
-        stack = 0
-        i_start = None
-
-        i = i_offset
-        while i < len(input_str):
-            c = input_str[i]
-            if c == '(':
-                if stack == 0:
-                    i_start = i + 1
-                stack += 1
-            elif c == ')':
-                stack -= 1
-                if stack == 0:
-                    return True, i, input_str[i_start:i]
-            i+=1
-        print("Brackets are not balenced you fucking twat!")
-        return False, 0, ""
-
-    def __extract_succ_modules(self, input_str):
-        i = 0
-        modules = []
-        while i < len(input_str):
-            c = input_str[i]
-            if c != '(':
-                valid_module_name = not (re.match(re_valid_module_name, c) == None)
-                if input_str[(i+1) % (len(input_str))] == '(':
-                    success, i, params = self.__extract_parameters(input_str, i)
-                    if success and valid_module_name:
-                        modules.append(LModule(c, params.split(',')))
-                    else:
-                        return False, []
-                elif c == ')':
-                    print("Brackets are not balenced you fucking twat!")
-                    return False, []
-                elif valid_module_name:
-                    modules.append(LModule(c,[]))
-            i+=1
-        return True, modules
-
-    def __extract_pred_module(self, input_str):
-        input_str = input_str.replace(" ", "")
-        symbol = ""
-        parameters = []
-        if match := re.match(re_valid_module, input_str):
-            groups = [x for x in match.groups() if x != None]
-            if len(groups) >= 1:
-                symbol = groups[0]
-            if len(groups) == 2:
-                parameters = groups[1].split(',')
+    def __foobar(self, module):
+        eval_params = [str(self.__expr.eval(p)) for p in module.parameters]
+        if len(eval_params) != 0:
+            return module.symbol + "("+",".join(eval_params)+")"
         else:
-            print("LRule Error: Failed to varify production. \"" + input_str + "\" is not a valid module.")
-            return False, None
-        return True, LModule(symbol, parameters)
+            return module.symbol
 
-    def __process_predecessor_string(self, input_str):     
-        left_context_str = ""
+    def __valid_module(self, module_dom, module_sub):
+        if module_dom.symbol == "":
+            return True
+        else:
+            valid_symbol = (module_dom.symbol == module_sub.symbol)
+            valid_parameter_list = (len(module_dom.parameters) == len(module_sub.parameters))
+            return valid_symbol and valid_parameter_list
+
+    def __load_module_parameters(self, module_dom, module_sub):
+        for i in range(len(module_dom.parameters)):
+            sym = module_dom.parameters[i]
+            val = module_sub.parameters[i]
+            self.__expr.set_value(sym, float(val))
+
+    def __process_predecessor_string(self, input_str):
+        success = True
+
+        l_context_str = ""
         pred_str = ""
-        right_context_str = ""
+        r_context_str = ""
+
+        input_str = input_str.replace(" ", "")
 
         if match := re.search('(.*)<(.*)>(.*)', input_str):
             groups = match.groups()
-            left_context_str = groups[0]
+            l_context_str = groups[0]
             pred_str = groups[1]
-            right_context_str = groups[2]
+            r_context_str = groups[2]
         elif match := re.search('(.*)<(.*)', input_str):
             groups = match.groups()
-            left_context_str = groups[0]
+            l_context_str = groups[0]
             pred_str = groups[1]
         elif match := re.search('(.*)>(.*)', input_str):
             groups = match.groups()
             pred_str = groups[0]
-            right_context_str = groups[1]
+            r_context_str = groups[1]
         else:
             pred_str = input_str
 
-        init_left_context_success, self.__left_context = self.__extract_pred_module(left_context_str)
-        init_predecessor_success, self.__predecessor = self.__extract_pred_module(pred_str)
-        init_right_context_success, self.__right_context = self.__extract_pred_module(right_context_str)
+        if l_context_str != "":
+            modules_success, self.__l_context, index_end = extract_module(l_context_str)
+            if not modules_success:
+                print("LRule Error: Failed to extract left context. \""+l_context_str+"\" is not a valid module.")
+                success = False
 
-        if self.__predecessor.symbol == "":
-            print("LRule Error: Failed to varify production. The predecessor cannot be an empty string.")
-            init_predecessor_success = False
+        modules_success, self.__pred, index_end = extract_module(pred_str)
+        if not modules_success:
+            print("LRule Error: Failed to extract predecessor. \""+pred_str+"\" is not a valid module.")
+            success = False
+        elif self.__pred.symbol == "":
+            print("LRule Error: Failed to varify production. The predecessor cannot be empty.")
+            success = False
 
-        init_variables_success = self.__init_variables()
+        if r_context_str != "":
+            modules_success, self.__r_context, index_end = extract_module(r_context_str)
+            if not modules_success:
+                print("LRule Error: Failed to extract right context. \""+r_context_str+"\" is not a valid module.")
+                success = False
 
-        success = (
-            init_left_context_success and 
-            init_predecessor_success and 
-            init_right_context_success and 
-            init_variables_success )
+        if success: 
+            success = self.__init_variables()
 
         return success
 
@@ -174,34 +162,50 @@ class LRule:
             self.__condition = condition
             return True
         
+        print("LRule Error: conditional failed to evaluate.")
         return False
 
     def __process_successor_string(self, input_str):
-        init_successor_success, self.__succ_modules = self.__extract_succ_modules(input_str)
-        return init_successor_success
+        input_str = input_str.replace(" ", "")
+        modules = []
+        success = True
+        i = 0
+        while i < len(input_str) and success:
+            success, module, index_end = extract_module(input_str, i)
+            i = index_end
+            if (success):
+                for expr in module.parameters:
+                    if self.__expr.eval(expr) is None:
+                        print("LRule: the parameter expression \""+expr+"\" failed to evaluate.")
+                        return False
+                modules.append(module)
+            else:
+                return False
+        return True
 
     def __process_prob_string(self, input_str):
-        input_str = input_str.strip(' ')
+        input_str = input_str.replace(" ", "")
         if self.__expr.eval(input_str) is not None:
             self.__prob = input_str
             return True
         else:
-            print("LRule Error: the production probability \"" + input_str + "\" can't be converted to a float." )
+            print("LRule: the probability expression \""+input_str+"\" failed to evaluate.")
             return False
 
     def __init_variables(self):
         vars = []
-        vars.extend(self.__left_context.parameters)
-        vars.extend(self.__predecessor.parameters)
-        vars.extend(self.__right_context.parameters)
+        vars.extend(self.__l_context.parameters)
+        vars.extend(self.__pred.parameters)
+        vars.extend(self.__r_context.parameters)
 
         if len(set(vars)) == len(vars):
             for v in vars:
-                self.__expr.add_var(v)
+                if (re.match(re_valid_parameter_name, v)):
+                    self.__expr.add_var(v)
+                else:
+                    print("LRule Error: The variable name \""+v+"\" is not valid. A variable name can only contain alpha-numeric characters and underscores (A-z, 0-9, and _ ) and cannot start with a number.")
+                    return False
         else:
             print("LRule Error: Failed to initialize predecessor variables. Duplicates detected.")
             return False
         return True
-
-rule = LRule("k(i,j,k) < A(m): m==(i+8) <= 10 = F(i,j,k,l,0)+F(i,j,k+5500*(imgay),l,1)+ : 1/100+50*0.5**10+o")
-print(rule.valid)

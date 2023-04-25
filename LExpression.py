@@ -1,4 +1,5 @@
 import ast
+import random
 import operator as op
 
 def valid_expression(input_str):
@@ -7,7 +8,7 @@ def valid_expression(input_str):
 class LExpression:
 
     def add_var(self, name):
-        self.__sym_dic[name] = 0
+        self.__sym_dic[name] = random.uniform(0, 1)
 
     def del_var(self, name):
         if name in self.__sym_dic:
@@ -40,6 +41,7 @@ class LExpression:
             return compare_out
         elif isinstance(node, ast.Name):
             if node.id not in self.__sym_dic:
+                print("LExpression Error: the symbol \""+str(node.id)+"\" is unknown.")
                 raise TypeError(node)
             else:
                 return self.__sym_dic[node.id]
@@ -60,11 +62,11 @@ class LExpression:
         if node := self.parse(input_str):
             try:
                 return self.__eval(node.body)
-            except TypeError:
-                print("LExpression Error: parser failed to compile. The expression \"" + input_str +"\" is invalid.")
+            except TypeError as e:
+                return None
+            except ZeroDivisionError as e:
                 return None
         else:
-            print("LExpression Error: parser failed to compile. The expression \"" + input_str +"\" is invalid.")
             return None
 
     __sym_dic = {

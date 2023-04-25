@@ -1,4 +1,3 @@
-import re
 
 # ------------------------ Regular Expression Patterns ----------------------- #
 
@@ -11,6 +10,7 @@ re_valid_module_name = r'[+\-&^\\\/|*~\"!;_?@\'#%$\[\].\{\}a-zA-Z]{1}'
 re_valid_module = r'^(?: *([+\-&^\\\/|*~\"!;_?@\'#%$\[\].\{\}a-zA-Z]{1}) *\( *([a-zA-Z_]+\w*(?: *, *[a-zA-Z_]+\w*)+|[a-zA-Z_]+\w*) *\) *| *([+\-&^\\\/|*~\"!;_?@\'#%$\[\].\{\}a-zA-Z]{1}) *|(^$))$'
 re_valid_boolean = r'and|or|not|xor|<=|<|>|>=|!=|==|[<>!=]=|[<>]'
 re_valid_math_expression = r'[ a-zA-Z0-9*+\-*\/%^]*'
+re_valid_parameter_name = r'^[a-zA-Z_]\w*$'
 
 re_test = r'(?: *([+\-&^\\\/|*~\"!;_?@\'#%$\[\].\{\}a-zA-Z]{1}) *\( *(.*(?: *, *.*)+|.*) *\) *| *([+\-&^\\\/|*~\"!;_?@\'#%$\[\].\{\}a-zA-Z]{1}) *|(^$))'
 
@@ -19,7 +19,7 @@ re_module = r'[A-Za-z]{1}(\((?:[^)(]+|\((?:[^)(]+|\([^)(]*\))*\))*\)|)'
 
 class LModule:
 
-    def __init__(self, symbol, parameters):
+    def __init__(self, symbol="", parameters=[]):
         self.__symbol = symbol
         self.__parameters = parameters
 
