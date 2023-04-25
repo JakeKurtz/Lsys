@@ -1,6 +1,24 @@
 import re
 from LModule import *
 
+# ------------------------ Regular Expression Patterns ----------------------- #
+
+re_input_struct = r'(.*(?::|).*)(=|\->)(.*(?::|))'
+
+re_empty = r'( *|^$)'
+
+re_valid_module_name = r'[+\-&^\\\/|*~\"!;_?@\'#%$\[\].\{\}a-zA-Z]{1}'
+
+re_valid_number = r'(?=.)(?:[+-]?(?:[0-9]*)(?:\.(?:[0-9]+))?)'
+
+re_valid_boolean = r'and|or|not|xor|<=|<|>|>=|!=|==|[<>!=]=|[<>]'
+
+re_valid_math_expression = r'[ a-zA-Z0-9*+\-*\/%^]*'
+
+re_valid_parameter_name = r'^[a-zA-Z_]\w*$'
+
+re_valid_module = r'(?: *('+re_valid_module_name+r') *\( *('+re_valid_number+r'(?: *, *'+re_valid_number+r')+|'+re_valid_number+r') *\) *| *('+re_valid_module_name+r') *)'
+
 def extract_parameters(input_str, i_offset):
     stack = 0
     i_start = None

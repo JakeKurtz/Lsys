@@ -1,5 +1,5 @@
 import re
-from util import extract_module
+from util import extract_module, re_input_struct, re_valid_parameter_name
 from LModule import *
 from LExpression import *
 
