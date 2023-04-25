@@ -39,5 +39,4 @@ def extract_module(input_str, i_offset=0):
             else:
                 break
         i+=1
-    print("Failed to find valid module.")
     return False, None, i

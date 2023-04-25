@@ -39,26 +39,22 @@ class LRule:
                     if self.__process_prob_string(prob_raw):
                          self.__valid = True
 
-    def __del__(self):
-        pass
-
     def apply(self, lc, pred, rc):
+        _lc = self.__valid_module(self.__l_context,   lc) 
+        _pred = self.__valid_module(self.__pred,      pred) 
+        _rc = self.__valid_module(self.__r_context,   rc)
 
-        if (
-            self.__valid_module(self.__l_context,   lc)     and 
-            self.__valid_module(self.__pred,        pred)   and 
-            self.__valid_module(self.__r_context,   rc) 
-        ):
-            self.__load_module_parameters(self.__l_context, lc)
-            self.__load_module_parameters(self.__pred,      pred)
-            self.__load_module_parameters(self.__r_context, rc)
+        if (_lc != None and _pred != None and _rc != None):
+            self.__load_module_parameters(self.__l_context, _lc)
+            self.__load_module_parameters(self.__pred,      _pred)
+            self.__load_module_parameters(self.__r_context, _rc)
+            if (self.__condition == "1" or self.__expr.eval(self.__condition)):
+                return ''.join([self.__build_module_str(module) for module in self.__succ_modules])
 
-            output = ""
-
-            if (self.__expr.eval(self.__condition)):
-                for module in self.__succ_modules:
-                    output += self.__foobar(module)
-
+        if len(pred) > 1:
+            output = "".join((pred[0],"(",pred[1],")"))
+        else:
+            output = pred[0]
         return output
 
     @property
@@ -67,6 +63,9 @@ class LRule:
     @property
     def input_str(self):
         return self.__input_str
+    @property
+    def symbol(self):
+        return self.__pred.symbol
 
     __succ_modules = []
 
@@ -78,23 +77,29 @@ class LRule:
     __prob = ""
 
     __valid = False
-    
     __expr = LExpression()
 
-    def __foobar(self, module):
-        eval_params = [str(self.__expr.eval(p)) for p in module.parameters]
-        if len(eval_params) != 0:
+    def __build_module_str(self, module):
+        if len(module.parameters) != 0:
+            eval_params = [str(self.__expr.eval(p)) for p in module.parameters]
             return module.symbol + "("+",".join(eval_params)+")"
         else:
             return module.symbol
 
     def __valid_module(self, module_dom, module_sub):
-        if module_dom.symbol == "":
-            return True
+        if module_dom.symbol == '':
+            return module_dom
         else:
-            valid_symbol = (module_dom.symbol == module_sub.symbol)
-            valid_parameter_list = (len(module_dom.parameters) == len(module_sub.parameters))
-            return valid_symbol and valid_parameter_list
+            symbol = module_sub[0] if len(module_sub) > 0 else ''
+            parameters = module_sub[1].split(',') if len(module_sub) > 1 else []
+
+            valid_symbol = (module_dom.symbol == symbol)
+            valid_parameter_list = (len(module_dom.parameters) == len(parameters))
+
+            if (valid_symbol and valid_parameter_list):
+                return LModule(symbol, parameters)
+            else:
+                return None
 
     def __load_module_parameters(self, module_dom, module_sub):
         for i in range(len(module_dom.parameters)):
@@ -181,6 +186,7 @@ class LRule:
                 modules.append(module)
             else:
                 return False
+        self.__succ_modules = modules
         return True
 
     def __process_prob_string(self, input_str):
