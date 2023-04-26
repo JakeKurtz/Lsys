@@ -1,9 +1,24 @@
 import time
+import copy
 from multiprocessing import Pool, freeze_support
 from functools import partial
 from LRule import *
 from LAxiom import *
 from util import re_valid_module
+
+def chunks(l, n):
+    """Yield n number of sequential chunks from l."""
+    d, r = divmod(len(l), n)
+    for i in range(n):
+        si = (d+1)*(i if i < r else r) + d*(0 if i < r else i - r)
+        yield l[si:si+(d+1 if i < r else d)]
+
+def init_processes(rule_instance):
+    """
+    Initialize each process in the process pool with global variable rules.
+    """
+    global rules
+    rules = rule_instance
 
 class Lsystem:
     def __init__(self):
@@ -26,9 +41,8 @@ class Lsystem:
     __axiom = None
     __string = ""
     __rule_dic = {}
-    __symbols = []
-    __generations = 15
-    __nmb_threads = 2
+    __generations = 19
+    __nmb_threads = 12
 
     def __build_module_str(self, module):
         if len(module) > 1:
@@ -36,18 +50,49 @@ class Lsystem:
         else:
             return module[0]
 
-    def _thread_func_test(self, i, sym, rule_dic):
-        l_context = self.__symbols[i-1] if i-1 >= 0 else ()
-        pred = sym
-        r_context = self.__symbols[i+1] if i+1 < len(self.__symbols) else ()
-
+    def _process_symbols(self, symbols):
+        l_context, pred, r_context = symbols
         string = self.__build_module_str(pred)
-
-        if pred[0] in rule_dic:
-            rules = rule_dic[pred[0]]
-            for r in rules:
-                string = r.apply(l_context, pred, r_context)
+        if pred[0] in rules:
+            rule_sym = rules[pred[0]]
+            for rule in rule_sym:
+                string = rule.apply(l_context, pred, r_context)
         return string
+
+    def __process_symbols(self, symbols):
+        l_context, pred, r_context = symbols
+        string = self.__build_module_str(pred)
+        if pred[0] in self.__rule_dic:
+            rule_sym = self.__rule_dic[pred[0]]
+            for rule in rule_sym:
+                string = rule.apply(l_context, pred, r_context)
+        return string
+
+    def _process_symbol_chunk(self, sym_chunk):
+        results = [''] * len(sym_chunk)
+        for i, sym in enumerate(sym_chunk):
+            results[i] = self._process_symbols(sym)
+        return "".join(results)
+
+    def __process_input_string(self, regex_comp, input_str):
+        symbols = [[sym for sym in group if sym != ''] for group in regex_comp.findall(input_str)]
+
+        nmb_symbols = len(symbols)
+        symbol_chunks = [[]] * nmb_symbols
+
+        if nmb_symbols == 1:
+            symbol_chunks[0] = [[],symbols[0],[]]
+        else:
+            symbol_chunks[0] = [[]]
+            symbol_chunks[0].extend(symbols[0:2])
+
+            for i in range(1, nmb_symbols):
+                if i == (nmb_symbols-1):
+                    symbol_chunks[i] = symbols[i-1:nmb_symbols]
+                    symbol_chunks[i].insert(2, [])
+                else:
+                    symbol_chunks[i] = symbols[i-1:i+2]
+        return symbol_chunks
 
     def add_rule(self, rule):
         if rule.symbol in self.__rule_dic:
@@ -62,23 +107,34 @@ class Lsystem:
             print("Failed to delete rule. A rule with the symbol \""+ sym + "\" does not exist.")
 
     def generate(self):
-        pool = Pool(self.__nmb_threads)
+        pool = Pool(processes=self.__nmb_threads, initializer=init_processes, initargs=(self.__rule_dic,))
         self.__string = self.__axiom.string
         regex_comp = re.compile(re_valid_module)
 
         start = time.time()
         for gen in range(self.__generations):
-            self.__symbols = [[sym for sym in group if sym != ''] for group in regex_comp.findall(self.__string)]
 
-            results = pool.starmap(partial(self._thread_func_test, rule_dic=self.__rule_dic), (enumerate(self.__symbols)))
-            #results = pool.starmap(self._thread_func_test, enumerate(self.__symbols))
+            symbols = self.__process_input_string(regex_comp, self.__string)
+            symbol_chunks = chunks(symbols, self.__nmb_threads*5)
+
+            # ------------------------------- Multiprocess ------------------------------- #
+
+            results = pool.map(self._process_symbol_chunk, symbol_chunks)
+
+            # ----------------------------------- Loop ----------------------------------- #
+
+            #results = [''] * len(symbols)
+            #for i, sym in enumerate(symbols):
+            #    results[i] = self.__process_symbols(sym)
+
+            # ---------------------------------------------------------------------------- #
+
             self.__string = "".join(results)
-
             #print(self.__string)
 
-        end = time.time()
-        print(len(self.__string), end - start)
         pool.close()
+        end = time.time()
+        print(len(self.__string), "took: "+str(end - start)+"s\n")
 
 if __name__ == '__main__':
     freeze_support()  # needed for Windows
