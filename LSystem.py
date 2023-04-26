@@ -5,28 +5,6 @@ from LRule import *
 from LAxiom import *
 from util import re_valid_module
 
-def build_module_str(module):
-    if len(module) > 1:
-        return module[0] + "("+",".join(module[1].split(','))+")"
-    else:
-        return module[0]
-
-def thread_func_test(symbols, rules_dic):
-    strings = [''] * len(symbols)
-    for i, sym in enumerate(symbols):
-        l_context = symbols[i-1] if i-1 >= 0 else ()
-        pred = sym
-        r_context = symbols[i+1] if i+1 < len(symbols) else ()
-
-        strings[i] = build_module_str(pred)
-
-        if pred[0] in rules_dic:
-            rules = rules_dic[pred[0]]
-            for r in rules:
-                strings[i] = r.apply(l_context, pred, r_context)
-    return ''.join(strings)
-
-
 class Lsystem:
     def __init__(self):
         pass
@@ -48,8 +26,28 @@ class Lsystem:
     __axiom = None
     __string = ""
     __rule_dic = {}
-    __generations = 8
-    __nmb_threads = 1
+    __symbols = []
+    __generations = 15
+    __nmb_threads = 2
+
+    def __build_module_str(self, module):
+        if len(module) > 1:
+            return module[0] + "("+",".join(module[1].split(','))+")"
+        else:
+            return module[0]
+
+    def _thread_func_test(self, i, sym, rule_dic):
+        l_context = self.__symbols[i-1] if i-1 >= 0 else ()
+        pred = sym
+        r_context = self.__symbols[i+1] if i+1 < len(self.__symbols) else ()
+
+        string = self.__build_module_str(pred)
+
+        if pred[0] in rule_dic:
+            rules = rule_dic[pred[0]]
+            for r in rules:
+                string = r.apply(l_context, pred, r_context)
+        return string
 
     def add_rule(self, rule):
         if rule.symbol in self.__rule_dic:
@@ -70,12 +68,13 @@ class Lsystem:
 
         start = time.time()
         for gen in range(self.__generations):
-            symbols = [[sym for sym in group if sym != ''] for group in regex_comp.findall(self.__string)]
+            self.__symbols = [[sym for sym in group if sym != ''] for group in regex_comp.findall(self.__string)]
 
-            results = pool.map(partial(thread_func_test, rules_dic=self.__rule_dic), [symbols])
+            results = pool.starmap(partial(self._thread_func_test, rule_dic=self.__rule_dic), (enumerate(self.__symbols)))
+            #results = pool.starmap(self._thread_func_test, enumerate(self.__symbols))
             self.__string = "".join(results)
 
-            print(self.__string)
+            #print(self.__string)
 
         end = time.time()
         print(len(self.__string), end - start)
@@ -88,13 +87,13 @@ if __name__ == '__main__':
 
     #lsys.set_axiom(LAxiom("X(1,2)"))
     #lsys.add_rule(LRule("X(i,j)=F[-X(i*2,j/2)][+X(j,i)]"))
-    
-    #lsys.set_axiom(LAxiom("X"))
-    #lsys.add_rule(LRule("X=F[-X][+X]"))
 
-    lsys.set_axiom(LAxiom("baaaaaaa"))
-    lsys.add_rule(LRule("b -> a"))
-    lsys.add_rule(LRule("b < a -> b"))
+    lsys.set_axiom(LAxiom("X"))
+    lsys.add_rule(LRule("X=F[-X][+X]"))
+
+    #lsys.set_axiom(LAxiom("baaaaaaa"))
+    #lsys.add_rule(LRule("b -> a"))
+    #lsys.add_rule(LRule("b < a -> b"))
 
     lsys.generate()
 
