@@ -1,10 +1,9 @@
 import time
-import copy
 from multiprocessing import Pool, freeze_support
-from functools import partial
+
 from LRule import *
 from LAxiom import *
-from util import re_valid_module
+from util import re_valid_module, valid_commands
 
 def chunks(l, n):
     """Yield n number of sequential chunks from l."""
@@ -41,7 +40,7 @@ class Lsystem:
     __axiom = None
     __string = ""
     __rule_dic = {}
-    __generations = 19
+    __generations = 8
     __nmb_threads = 12
 
     def __build_module_str(self, module):
@@ -115,10 +114,10 @@ class Lsystem:
         for gen in range(self.__generations):
 
             symbols = self.__process_input_string(regex_comp, self.__string)
-            symbol_chunks = chunks(symbols, self.__nmb_threads*5)
 
             # ------------------------------- Multiprocess ------------------------------- #
-
+            
+            symbol_chunks = chunks(symbols, self.__nmb_threads*5)
             results = pool.map(self._process_symbol_chunk, symbol_chunks)
 
             # ----------------------------------- Loop ----------------------------------- #
@@ -132,20 +131,30 @@ class Lsystem:
             self.__string = "".join(results)
             #print(self.__string)
 
-        pool.close()
+        symbols = [[sym for sym in group if sym != ''] for group in regex_comp.findall(self.__string)]
+        command_list = [None] * len(symbols)
+        for i, sym in enumerate(symbols):
+            if sym[0] in valid_commands:
+                s = sym[0]
+                p = sym[1] if len(sym) > 1 else []
+                command_list[i] = LModule(s, p)
+
+        print("string size:"+str(len(self.__string)), "\nnmb of commands = "+str(len(command_list)))
+
         end = time.time()
         print(len(self.__string), "took: "+str(end - start)+"s\n")
+        pool.close()
 
 if __name__ == '__main__':
     freeze_support()  # needed for Windows
 
     lsys = Lsystem()
 
-    #lsys.set_axiom(LAxiom("X(1,2)"))
-    #lsys.add_rule(LRule("X(i,j)=F[-X(i*2,j/2)][+X(j,i)]"))
+    lsys.set_axiom(LAxiom("X(1,2)"))
+    lsys.add_rule(LRule("X(i,j)=F[-X(i*2,j/2)][+X(j,i)]"))
 
-    lsys.set_axiom(LAxiom("X"))
-    lsys.add_rule(LRule("X=F[-X][+X]"))
+    #lsys.set_axiom(LAxiom("X"))
+    #lsys.add_rule(LRule("X=F[-X][+X]"))
 
     #lsys.set_axiom(LAxiom("baaaaaaa"))
     #lsys.add_rule(LRule("b -> a"))
