@@ -10,9 +10,10 @@
 import copy
 from dataclasses import dataclass
 from mathutils import Vector, Matrix
+from math import radians
 
 @dataclass
-class TurtleVertex:
+class TurtleState:
     dir = Vector((0, 0, 0))
     right = Vector((0, 0, 0))
     up = Vector((0, 0, 0))
@@ -28,25 +29,44 @@ class TurtleVertex:
 class LTurtle:
 
     def __init__(self, pos = Vector((0, 0, 0)), dir = Vector((0, 1, 0))):
-        pass
+
+        self.state = TurtleState()
+
+        self.state.pos = pos
+        self.state.dir = dir
+        self.state.angle = self.__default_angle
+        self.state.step_size = self.__default_step_size
+        self.state.thickness = self.__default_thickness
+
+        self.update_orientation(Matrix())
 
     def set_default_state(self):
         pass
 
-    def build_curve(self):
-        pass
+    def run(self, command_list):
+        for command in command_list:
+            self.execute(command)
 
-    def execute_op(self, module):
-        match module.symbol:
+    def execute(self, command):
+        s = command.symbol
+        p = command.parameters
+
+        match s:
             # F(l,w,s,d)
             # Move forward (creating geometry) distance l of width w using s cross sections of d divisions each.
             case 'F':
-                pass
+                if len(p) > 0:
+                    self.F(p[0])
+                else:
+                    self.F(self.__default_step_size)
 
             # H(l,w,s,d)
             # Move forward half the length (creating geometry) distance l of width w using s cross sections of d divisions each.
             case 'H':
-                pass
+                if len(p) > 0:
+                    self.F(p[0] * 0.5)
+                else:
+                    self.F(self.__default_step_size * 0.5)
 
             # G(l,w,s,d)
             # Move forward but don’t record a vertex distance l of width w using s cross sections of d divisions each.
@@ -75,12 +95,18 @@ class LTurtle:
             # f(l,w,s,d)
             # Move forward (no geometry created) distance l of width w using s cross sections of d divisions each.
             case 'f':
-                pass
+                if len(p) > 0:
+                    self.f(p[0])
+                else:
+                    self.f(self.__default_step_size)
 
             # h(l,w,s,d)
             # Move forward a half length (no geometry created) distance l of width w using s cross sections of d divisions each.
             case 'h':
-                pass
+                if len(p) > 0:
+                    self.f(p[0] * 0.5)
+                else:
+                    self.f(self.__default_step_size * 0.5)
             
             # g(i)
             # Create a new primitive group to which subsequent geometry is added. The group name is the Group Prefix followed by the number i. 
@@ -99,42 +125,60 @@ class LTurtle:
             # +(a)
             # Turn right a degrees. Default Angle.
             case '+':
-                pass
+                if len(p) > 0:
+                    self.apply_yaw(p[0])
+                else:
+                    self.apply_yaw(self.state.angle)
 
             # -(a)
             # Turn left a degrees (minus sign). Default Angle.
             case '-':
-                pass
+                if len(p) > 0:
+                    self.apply_yaw(-p[0])
+                else:
+                    self.apply_yaw(-self.state.angle)
 
             # &(a)
             # Pitch down a degrees. Default Angle.
             case '&':
-                pass
+                if len(p) > 0:
+                    self.apply_pitch(p[0])
+                else:
+                    self.apply_pitch(self.state.angle)
 
             # ^(a)
             # Pitch up a degrees. Default Angle.
             case '^':
-                pass
+                if len(p) > 0:
+                    self.apply_pitch(-p[0])
+                else:
+                    self.apply_pitch(-self.state.angle)
 
             # \\(a)
             # Roll clockwise a degrees. Default Angle.
             case '\\':
-                pass
+                if len(p) > 0:
+                    self.apply_roll(p[0])
+                else:
+                    self.apply_roll(self.state.angle)
 
             # /(a)
             # Roll counter-clockwise a degrees. Default Angle.
             case '/':
-                pass
+                if len(p) > 0:
+                    self.apply_roll(-p[0])
+                else:
+                    self.apply_roll(-self.state.angle)
 
             # |
             # Turn 180 degrees
             case '|':
-                pass
+                self.apply_yaw(180)
 
             # *
             # Roll 180 degrees
             case '*':
-                pass
+                self.apply_roll(180)
 
             # ~(a)
             # Pitch / Roll / Turn random amount up to a degrees. Default 180.
@@ -144,22 +188,34 @@ class LTurtle:
             # "(s)
             # Multiply current length by s. Default Step Size Scale.
             case '\"':
-                pass
+                if len(p) > 0:
+                    self.state.step_size *= p[0]
+                else:
+                    self.state.step_size *= self.__default_step_size_scale
 
             # !(s)
             # Multiply current thickness by s. Default Thickness Scale.
             case '!':
-                pass
+                if len(p) > 0:
+                    self.state.thickness *= p[0]
+                else:
+                    self.state.thickness *= self.__default_thickness_scale
 
             # ;(s)
             # Multiply current angle by s. Default Angle Scale.
             case ';':
-                pass
+                if len(p) > 0:
+                    self.state.angle *= p[0]
+                else:
+                    self.state.angle *= self.__default_angle_scale
             
             # _(s)
             # Divide current length (underscore) by s. Default Step Size Scale.
             case '_':
-                pass
+                if len(p) > 0:
+                    self.state.step_size /= p[0]
+                else:
+                    self.state.step_size /= self.__default_step_size_scale
             
             # ?(s)
             # Divides current width by s. Default Thickness Scale.
@@ -169,7 +225,10 @@ class LTurtle:
             # @(s)
             # Divide current angle by s. Default Angle Scale.
             case '@':
-                pass
+                if len(p) > 0:
+                    self.state.angle /= p[0]
+                else:
+                    self.state.angle /= self.__default_angle_scale
             
             # '(u)
             # Increment color index U by u. Default UV Increment's first parameter.
@@ -190,17 +249,17 @@ class LTurtle:
             # Rotates the turtle so the up vector is (0,1,0). Points the turtle in the direction of the point (x,y,z). Default behavior is only to orient 
             # and not to change the direction.
             case '$':
-                pass
+                self.update_orientation(Matrix())
             
             # [
             # Push turtle state (start a branch)
             case '[':
-                pass
+                self.push_state()
             
             # ]
             # Pop turtle state (end a branch)
             case ']':
-                pass
+                self.pop_state()
             
             # {
             # Start a polygon
@@ -216,40 +275,89 @@ class LTurtle:
             case '.':
                 pass
     
-    def F(self, len):
-        pass
-    def f(self, len):
-        pass
+    def F(self, l):
+
+        if (len(self.verts) == 0):
+            self.verts.append(self.state.pos)
+
+        vertex_index = self.state.vertex_index
+
+        # Translate turtle
+        self.state.pos = (l * self.state.step_size) * self.state.dir + self.state.pos
+
+        # Push new vertex position to the vertex list
+        self.verts.append(self.state.pos)
+
+        self.state.vertex_index = len(self.verts)-1
+
+        # New Edge
+        start = vertex_index
+        end = self.state.vertex_index
+        self.edges.append([start, end])
+
+    def f(self, l):
+        # Translate turtle
+        self.state.pos = (l * self.state.step_size) * self.state.dir + self.state.pos
+
+        self.verts.append(self.state.pos)
+        self.state.vertex_index = len(self.verts)-1
 
     def apply_yaw(self, angle):
-        pass
+        self.apply_rotation(Matrix.Rotation(radians(angle), 4, self.state.up))
+    
     def apply_pitch(self, angle):
-        pass
+        self.apply_rotation(Matrix.Rotation(radians(angle), 4, self.state.right))
+    
     def apply_roll(self, angle):
-        pass
+        self.apply_rotation(Matrix.Rotation(radians(angle), 4, self.state.dir))
 
     def push_state(self):
-        pass
+        self.state_stack.append(self.state.copy())
+
     def pop_state(self):
-        pass
+        if len(self.state_stack) != 0:
+            self.state = self.state_stack.pop()
+        else:
+            print("Turtle Error: tried to pop an empty stack! Ensure the brackets \'[\' and \']\' are balanced in the replacement string.")
+        
+    def apply_rotation(self, rot_mat):
+        self.state.dir = Vector.normalized((rot_mat @ self.state.dir.to_4d()).to_3d())
+        self.state.right =  Vector.normalized((rot_mat @ self.state.right.to_4d()).to_3d())
+        self.state.up =  Vector.normalized((rot_mat @ self.state.up.to_4d()).to_3d())
 
-    __pos = None
-    __dir = None
+    def update_orientation(self, rot_mat):
+        self.state.dir = Vector.normalized(rot_mat @ self.state.dir.to_4d()).to_3d()
+        self.state.right =  Vector.normalized(Vector.cross(self.state.dir, self.__world_up))
+        self.state.up =  Vector.normalized(Vector.cross(self.state.right, self.state.dir))
 
-    __look_at = Matrix()
-    __up = None
-    __right = None
     __world_up = Vector((0.0, 0.0, 1.0))
 
     __state = []
     __current_state = None
 
-    #std::string cmd_str = "";
-
-    __thickness = 0.1
-    __thickness_scale = 0.5
+    __default_thickness = 0.1
+    __default_thickness_scale = 0.5
     
-    __step_size = 1.0
-    __step_size_scale = 0.5
+    __default_step_size = 1.0
+    __default_step_size_scale = 0.5
 
-    __angle = 28.0
+    __default_angle = 28.0
+    __default_angle_scale = 1.0
+
+    verts = []
+    edges = []
+
+    state_stack = []
+    state = None
+
+'''
+lsys = Lsystem()
+
+lsys.set_axiom(LAxiom("X"))
+lsys.add_rule(LRule("X=F[-X][+X]"))
+
+lsys.generate()
+
+frank = LTurtle()
+frank.run(lsys.command_list)
+'''

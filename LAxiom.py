@@ -1,4 +1,4 @@
-from util import extract_module
+from .util import extract_module
 
 class LAxiom:
     def __init__(self, input_str):

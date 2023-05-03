@@ -1,5 +1,5 @@
 import re
-from LModule import *
+from .LModule import LModule
 
 # ------------------------ Regular Expression Patterns ----------------------- #
 
@@ -20,15 +20,12 @@ re_valid_parameter_name = r'^[a-zA-Z_]\w*$'
 re_valid_module = r'(?: *('+re_valid_module_name+r') *\( *('+re_valid_number+r'(?: *, *'+re_valid_number+r')+|'+re_valid_number+r') *\) *| *('+re_valid_module_name+r') *)'
 
 valid_commands = {
-    '+':None,'-':None,'&':None,'\\':None,
-    '^':None,'/':None,'|':None,'*':None,
-    '~':None,'\"':None,'!':None,';':None,
-    '_':None,'?':None,'@':None,'\'':None,
-    '#':None,'%':None,'$':None,'[':None,
-    ']':None,'.':None,'{':None,'}':None,
-    'F':None,'H':None,'G':None,'f':None,
-    'h':None,'g':None,'a':None,'J':None,
-    'K':None,'M':None,'T':None,}
+    '+',    '-',    '&',    '\\',   '^',    '/',    '|',    '*',
+    '~',    '\"',   '!',    ';',    '_',    '?',    '@',    '\'',
+    '#',    '%',    '$',    '[',    ']',    '.',    '{',    '}',
+    'F',    'H',    'G',    'f',    'h',    'g',    'a',    'J',
+    'K',    'M',    'T',
+}
 
 def extract_parameters(input_str, i_offset):
     stack = 0
@@ -68,4 +65,4 @@ def extract_module(input_str, i_offset=0):
             else:
                 break
         i+=1
-    return False, None, i
+    return False, LModule(), i

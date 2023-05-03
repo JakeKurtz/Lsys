@@ -7,6 +7,12 @@ def valid_expression(input_str):
 
 class LExpression:
 
+    def __init__(self):
+        self.__sym_dic = {
+            ast.Add: op.add, ast.Sub: op.sub, ast.Mult: op.mul, ast.Div: op.truediv, 
+            ast.Pow: op.pow, ast.USub: op.neg, ast.Eq: op.eq, ast.NotEq: op.ne, ast.Lt: op.lt, ast.LtE: op.le 
+        }
+
     def add_var(self, name):
         self.__sym_dic[name] = random.uniform(0, 1)
 
@@ -69,14 +75,13 @@ class LExpression:
         else:
             return None
 
-    __sym_dic = {
-        ast.Add: op.add, ast.Sub: op.sub, ast.Mult: op.mul, ast.Div: op.truediv, 
-        ast.Pow: op.pow, ast.USub: op.neg, ast.Eq: op.eq, ast.NotEq: op.ne, ast.Lt: op.lt, ast.LtE: op.le }
+    __sym_dic = {}
 
     __op_white_list = (
-        ast.Compare,    ast.Eq,     ast.NotEq,  ast.Lt, 
-        ast.LtE,        ast.Gt,     ast.GtE,    ast.Is, 
-        ast.IsNot,      ast.Load,   ast.Name,   ast.Constant, 
-        ast.Expression, ast.BinOp,  ast.Add,    ast.Sub, 
-        ast.Mult,       ast.Div,    ast.Pow,    ast.Mod,
-        ast.BoolOp,     ast.Not)
+            ast.Compare,    ast.Eq,     ast.NotEq,  ast.Lt, 
+            ast.LtE,        ast.Gt,     ast.GtE,    ast.Is, 
+            ast.IsNot,      ast.Load,   ast.Name,   ast.Constant, 
+            ast.Expression, ast.BinOp,  ast.Add,    ast.Sub, 
+            ast.Mult,       ast.Div,    ast.Pow,    ast.Mod,
+            ast.BoolOp,     ast.Not
+        )

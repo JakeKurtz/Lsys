@@ -1,12 +1,18 @@
 import re
-from util import extract_module, re_input_struct, re_valid_parameter_name
-from LModule import *
-from LExpression import *
+from .util import extract_module, re_input_struct, re_valid_parameter_name
+from .LModule import LModule
+from .LExpression import LExpression
 
 class LRule:
 
     def __init__(self, input_str):    
         self.__input = input_str
+        self.__valid = False
+        self.__expr = LExpression()
+
+        self.__l_context = LModule()
+        self.__pred = LModule()
+        self.__r_context = LModule()
 
         pred_str = ""
         cond_str = ""
@@ -30,8 +36,7 @@ class LRule:
                 succ_str, prob_raw = match
             else:
                 succ_str = suffix
-                prob_raw = "1"
-            
+                prob_raw = "1"            
             
         if self.__process_predecessor_string(pred_str):
             if self.__process_conditional_string(cond_str):
@@ -69,15 +74,15 @@ class LRule:
 
     __succ_modules = []
 
-    __l_context = LModule()
-    __pred = LModule()
-    __r_context = LModule()
+    __l_context = None
+    __pred = None
+    __r_context = None
 
     __condition = ""
     __prob = ""
 
     __valid = False
-    __expr = LExpression()
+    __expr = None
 
     def __build_module_str(self, module):
         if len(module.parameters) != 0:
@@ -208,6 +213,7 @@ class LRule:
             for v in vars:
                 if (re.match(re_valid_parameter_name, v)):
                     self.__expr.add_var(v)
+                    print(self.__expr)
                 else:
                     print("LRule Error: The variable name \""+v+"\" is not valid. A variable name can only contain alpha-numeric characters and underscores (A-z, 0-9, and _ ) and cannot start with a number.")
                     return False
